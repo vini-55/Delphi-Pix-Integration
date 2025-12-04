@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2025/11/25 07:05:08.000.536,=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/11/25 10:49:44.000.589,=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/11/25 10:56:38.000.452,C:\Users\User\Desktop\PROJETO EMBED.PIX\exemple_embed_pix.pas=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2025/11/25 10:56:38.000.452,C:\Users\User\Desktop\PROJETO EMBED.PIX\exemple_embed_pix.dfm=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>2025/11/25 10:57:02.000.040,C:\Users\User\Desktop\PROJETO EMBED.PIX\exemple_embed_api_pix.dproj=C:\Users\User\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>2025/11/25 11:01:21.000.925,C:\Users\User\Desktop\PROJETO EMBED.PIX\exemple_embed_pix.pas=</Transaction>
+    <Transaction>2025/11/25 11:01:43.000.830,=C:\Users\User\Desktop\PROJETO EMBED.PIX\exemple_api_embed_pix.pas</Transaction>
+  </Transactions>
+</BorlandProject>

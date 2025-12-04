@@ -1,0 +1,159 @@
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls,
+  // --- UNITS DO DATAWARE E INDY ---
+  uRESTDWIdBase,       // Componente de Conexão
+  IdSSLOpenSSL, uRESTDWAbout, uRESTDWBasicClass;        // <--- IMPORTANTE: Permite configurar o TLS 1.2
+
+type
+  TForm1 = class(TForm)
+    // Componentes Visuais
+    EditUser: TEdit;
+    EditPass: TEdit;
+    ButtonLogin: TButton;
+    MemoLog: TMemo;
+
+    // Componente Dataware (Renomeado para DWClient)
+    DWClient: TRESTDWIdClientREST;
+
+    procedure ButtonLoginClick(Sender: TObject);
+  private
+    // Função manual para pegar o token (sem precisar de unit JSON)
+    function ExtractToken(const AJson: string): string;
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+{ -----------------------------------------------------------------------------
+  Função: ExtractToken
+  Objetivo: Extrair o texto entre "access_token":" e " de forma manual
+----------------------------------------------------------------------------- }
+function TForm1.ExtractToken(const AJson: string): string;
+var
+  PosIni, PosFim: Integer;
+  Key: string;
+begin
+  Result := '';
+  Key := '"access_token":"';
+
+  // Procura onde começa a chave do token
+  PosIni := Pos(Key, AJson);
+
+  if PosIni > 0 then
+  begin
+    // Avança a posição para o início do valor do token
+    PosIni := PosIni + Length(Key);
+
+    // Procura a próxima aspas duplas (") a partir do início do token
+    // Usamos Copy para "olhar" apenas do token para frente
+    PosFim := Pos('"', Copy(AJson, PosIni, Length(AJson)));
+
+    if PosFim > 0 then
+    begin
+      // Pega o texto exato do token
+      Result := Copy(AJson, PosIni, PosFim - 1);
+    end;
+  end;
+end;
+
+{ -----------------------------------------------------------------------------
+  Procedure: ButtonLoginClick
+----------------------------------------------------------------------------- }
+procedure TForm1.ButtonLoginClick(Sender: TObject);
+var
+  vParams: TStringList;
+  vRespStream: TStringStream;
+  vResponseStr: String;
+  vStatusCode: Integer;
+  Token: String;
+  vURL: String;
+begin
+  // 1. URL da API
+  vURL := 'https://sandbox.bcodex.io/bcdx-sso/login';
+
+  // 2. Prepara os objetos
+  vParams := TStringList.Create;
+  vRespStream := TStringStream.Create('');
+
+  try
+    // Parâmetros do Login
+    vParams.Add('username=' + EditUser.Text);
+    vParams.Add('password=' + EditPass.Text);
+
+    MemoLog.Lines.Clear;
+    MemoLog.Lines.Add('Configurando Segurança...');
+
+    try
+      // --- AQUI ESTÁ A CORREÇÃO DO ERRO DE PROTOCOLO ---
+      // Força o componente a usar TLS 1.2 (Exigido por bancos/APIs modernas)
+      DWClient.SSLMethod := sslvTLSv1_2;
+
+      MemoLog.Lines.Add('Conectando em: ' + vURL);
+
+      // 3. Executa o POST
+      vStatusCode := DWClient.Post(
+         vURL,                  // Endereço
+         vParams,               // Dados (User/Pass)
+         TStream(vRespStream),  // Onde guardar a resposta
+         True,                  // SSL Ligado (HTTPS)
+         False                  // Sem Thread
+      );
+
+      // Lê a resposta do Stream
+      vResponseStr := vRespStream.DataString;
+
+      MemoLog.Lines.Add('Status Code: ' + IntToStr(vStatusCode));
+
+      // 4. Verifica se deu certo (200)
+      if vStatusCode = 200 then
+      begin
+         MemoLog.Lines.Add('LOGIN REALIZADO COM SUCESSO!');
+
+         // Tenta extrair o token manualmente
+         Token := ExtractToken(vResponseStr);
+
+         if Token <> '' then
+         begin
+           MemoLog.Lines.Add('--------------------------------------------------');
+           MemoLog.Lines.Add('SEU TOKEN:');
+           MemoLog.Lines.Add(Token);
+           MemoLog.Lines.Add('--------------------------------------------------');
+           // SUGESTÃO: Aqui você pode salvar o Token numa variável global:
+           // GlobalToken := Token;
+         end
+         else
+         begin
+           MemoLog.Lines.Add('Aviso: Token não encontrado na resposta.');
+           MemoLog.Lines.Add('JSON Bruto: ' + vResponseStr);
+         end;
+      end
+      else
+      begin
+        // Erro de Login (Senha errada, etc)
+        MemoLog.Lines.Add('Falha no Login.');
+        MemoLog.Lines.Add('Resposta da API: ' + vResponseStr);
+      end;
+
+    except
+      on E: Exception do
+        MemoLog.Lines.Add('Erro de Conexão: ' + E.Message);
+    end;
+
+  finally
+    vParams.Free;
+    vRespStream.Free;
+  end;
+end;
+
+end.

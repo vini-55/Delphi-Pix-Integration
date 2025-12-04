@@ -1,0 +1,139 @@
+unit exemple_api_embed_pix;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls,
+  // Apenas a unit do componente de conexão
+  uRESTDWIdBase, uRESTDWAbout, uRESTDWBasicClass;
+
+type
+  TForm1 = class(TForm)
+    // Componentes Visuais
+    EditUser: TEdit;
+    EditPass: TEdit;
+    ButtonLogin: TButton;
+    MemoLog: TMemo;
+
+    // Componente Dataware (Client)
+    DWClient: TRESTDWIdClientREST;
+
+    procedure ButtonLoginClick(Sender: TObject);
+  private
+    function ExtractToken(const AJson: string): string; // Função manual
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+{ -----------------------------------------------------------------------------
+  Função auxiliar para extrair o token sem precisar de unit de JSON
+  Procura por: "access_token":"..."
+----------------------------------------------------------------------------- }
+function TForm1.ExtractToken(const AJson: string): string;
+var
+  PosIni, PosFim: Integer;
+  Key: string;
+begin
+  Result := '';
+  Key := '"access_token":"';
+
+  // Acha onde começa a chave
+  PosIni := Pos(Key, AJson);
+
+  if PosIni > 0 then
+  begin
+    // Pula a chave para chegar no valor
+    PosIni := PosIni + Length(Key);
+
+    // Acha onde termina o valor (próxima aspas duplas)
+    // Copia o resto da string a partir do valor para procurar a aspa
+    PosFim := Pos('"', Copy(AJson, PosIni, Length(AJson)));
+
+    if PosFim > 0 then
+    begin
+      // Pega o token
+      Result := Copy(AJson, PosIni, PosFim - 1);
+    end;
+  end;
+end;
+
+procedure TForm1.ButtonLoginClick(Sender: TObject);
+var
+  vParams: TStringList;
+  vRespStream: TStringStream;
+  vResponseStr: String;
+  vStatusCode: Integer;
+  Token: String;
+  vURL: String;
+begin
+  vURL := 'https://sandbox.bcodex.io/bcdx-sso/login';
+
+  vParams := TStringList.Create;
+  vRespStream := TStringStream.Create('');
+
+  try
+    vParams.Add('username=' + EditUser.Text);
+    vParams.Add('password=' + EditPass.Text);
+
+    MemoLog.Lines.Clear;
+    MemoLog.Lines.Add('Conectando em: ' + vURL);
+
+    try
+      // POST
+      vStatusCode := DWClient.Post(
+         vURL,
+         vParams,
+         TStream(vRespStream),
+         True,
+         False
+      );
+
+      vResponseStr := vRespStream.DataString;
+
+      MemoLog.Lines.Add('Status Code: ' + IntToStr(vStatusCode));
+
+      if vStatusCode = 200 then
+      begin
+         MemoLog.Lines.Add('LOGIN SUCESSO!');
+
+         // Extração Manual do Token
+         Token := ExtractToken(vResponseStr);
+
+         if Token <> '' then
+         begin
+           MemoLog.Lines.Add('-----------------------------');
+           MemoLog.Lines.Add('TOKEN: ' + Token);
+           MemoLog.Lines.Add('-----------------------------');
+         end
+         else
+         begin
+           MemoLog.Lines.Add('Token não encontrado na string.');
+           MemoLog.Lines.Add(vResponseStr);
+         end;
+      end
+      else
+      begin
+        MemoLog.Lines.Add('Erro na Requisição.');
+        MemoLog.Lines.Add('Resposta: ' + vResponseStr);
+      end;
+
+    except
+      on E: Exception do
+        MemoLog.Lines.Add('Erro Fatal: ' + E.Message);
+    end;
+
+  finally
+    vParams.Free;
+    vRespStream.Free;
+  end;
+end;
+
+end.

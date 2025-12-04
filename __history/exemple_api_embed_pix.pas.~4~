@@ -1,0 +1,132 @@
+unit exemple_api_embed_pix; // <--- NOME CORRIGIDO AQUI
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls,
+  // Units Dataware e Indy
+  uRESTDWIdBase,
+  IdSSLOpenSSL, uRESTDWAbout, uRESTDWBasicClass; // Para as constantes SSL
+
+type
+  TForm1 = class(TForm)
+    EditUser: TEdit;
+    EditPass: TEdit;
+    ButtonLogin: TButton;
+    MemoLog: TMemo;
+
+    // Componente Dataware (Renomeado no Design para DWClient)
+    DWClient: TRESTDWIdClientREST;
+
+    procedure ButtonLoginClick(Sender: TObject);
+  private
+    function ExtractToken(const AJson: string): string;
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+function TForm1.ExtractToken(const AJson: string): string;
+var
+  PosIni, PosFim: Integer;
+  Key: string;
+begin
+  Result := '';
+  Key := '"access_token":"';
+  PosIni := Pos(Key, AJson);
+  if PosIni > 0 then
+  begin
+    PosIni := PosIni + Length(Key);
+    PosFim := Pos('"', Copy(AJson, PosIni, Length(AJson)));
+    if PosFim > 0 then
+      Result := Copy(AJson, PosIni, PosFim - 1);
+  end;
+end;
+
+procedure TForm1.ButtonLoginClick(Sender: TObject);
+var
+  vParams: TStringList;
+  vRespStream: TStringStream;
+  vResponseStr: String;
+  vStatusCode: Integer;
+  Token: String;
+  vURL: String;
+begin
+  vURL := 'https://sandbox.bcodex.io/bcdx-sso/login';
+
+  vParams := TStringList.Create;
+  vRespStream := TStringStream.Create('');
+
+  try
+    vParams.Add('username=' + EditUser.Text);
+    vParams.Add('password=' + EditPass.Text);
+
+    MemoLog.Lines.Clear;
+    MemoLog.Lines.Add('Conectando em: ' + vURL);
+
+    try
+      // --- CONFIGURAÇÃO DE SEGURANÇA (AJUSTADA) ---
+      // Se DWClient.SSLMethod der erro, tentamos acessar via objeto interno ou ignoramos
+      // pois as DLLs novas (1.0.2u) já tendem a negociar o melhor protocolo sozinhas.
+
+      try
+         // Tenta configurar (se a propriedade existir nessa versão)
+         // Se der erro de compilação aqui, COMENTE a linha abaixo:
+   //      DWClient.SSLMethod := sslvTLSv1_2;
+      except
+         // Se der erro em tempo de execução, ignora
+      end;
+
+      // 3. Executa o POST
+      vStatusCode := DWClient.Post(
+         vURL,
+         vParams,
+         TStream(vRespStream),
+         True,
+         False
+      );
+
+      vResponseStr := vRespStream.DataString;
+
+      MemoLog.Lines.Add('Status Code: ' + IntToStr(vStatusCode));
+
+      if vStatusCode = 200 then
+      begin
+         MemoLog.Lines.Add('LOGIN SUCESSO!');
+         Token := ExtractToken(vResponseStr);
+
+         if Token <> '' then
+         begin
+           MemoLog.Lines.Add('TOKEN: ' + Token);
+         end
+         else
+         begin
+           MemoLog.Lines.Add('Token não encontrado.');
+           MemoLog.Lines.Add(vResponseStr);
+         end;
+      end
+      else
+      begin
+        MemoLog.Lines.Add('Falha no Login.');
+        MemoLog.Lines.Add('Resposta: ' + vResponseStr);
+      end;
+
+    except
+      on E: Exception do
+        MemoLog.Lines.Add('Erro: ' + E.Message);
+    end;
+
+  finally
+    vParams.Free;
+    vRespStream.Free;
+  end;
+end;
+
+end.
